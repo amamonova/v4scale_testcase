@@ -8,6 +8,10 @@ CURRENT ANALYST COVERAGE SUMMARY from
 
 Clone this repo and start the `script.py` file.
 
+```shell script
+python script.py
+```
+
 ### Prerequisites
 
 Download all requirements:
