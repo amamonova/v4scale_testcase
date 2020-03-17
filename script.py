@@ -1,27 +1,20 @@
 from bs4 import BeautifulSoup
 import pandas as pd
+from prefect import task, Flow
 import requests
 
 
-def get_html(url):
+@task
+def extract(url):
     """
-    This function gets an url parameter and return string with response.
+    This function gets an url parameter and returns html soup
+    (a complex tree of Python objects).
 
     :param url: The url with needed info
-    :return: string with HTML
+    :return: soup
     """
     r = requests.get(url)
-    return r.text
-
-
-def get_soup(html):
-    """
-    This function return parsed objects of given HTML page.
-
-    :param html: string with HTML
-    :return: soup (a complex tree of Python objects)
-    """
-    return BeautifulSoup(html, 'html.parser')
+    return BeautifulSoup(r.text, 'html.parser')
 
 
 def clean_price_target(inp_str):
@@ -40,17 +33,34 @@ def clean_price_target(inp_str):
 
 
 def preprocess_rating_column(inp_str):
+    """
+    This function preprocess raw rating string to string with one word.
+
+    :param inp_str: The string with/without '➝' symbol
+    :return: clean string
+    """
     if type(inp_str) == str and '➝' in inp_str:
         return inp_str.split('➝')[1].strip()
     return inp_str
 
 
 def get_metrics(dataframe, metric_type, ratings='Sell Hold Buy', freq='D'):
+    """
+    This function computes metrics AMT_ANALYST_BUY, AMT_ANALYST_SELL,
+    AMT_ANALYST_HOLD, INS_ANALYST_BUY, INS_ANALYST_SELL, INS_ANALYST_HOLD
+
+    :param dataframe: pandas dataframe
+    :param metric_type: string - 'ins' or 'amt' implemented
+    :param ratings: string - types of rating sliced by space.
+    'Sell Hold Buy' by default
+    :param freq: string - 'D' by default. Frequency of grouping
+    :return: dict with names of metrics as keys and pd.Series as values
+    """
     res = {}
     for t in ratings.split(' '):
 
         if metric_type == 'ins':
-            series = dataframe[dataframe.Rating == t].set_index('Date')\
+            series = dataframe[dataframe.Rating == t].set_index('Date') \
                 .groupby(pd.Grouper(freq=freq))['Price Target'].count()
         elif metric_type == 'amt':
             series = dataframe[dataframe.Rating == t].set_index('Date') \
@@ -59,19 +69,24 @@ def get_metrics(dataframe, metric_type, ratings='Sell Hold Buy', freq='D'):
             print('Not implemented type of metric')
             return 0
 
-        # series.index = series.index.map(lambda x: f'{x.year}-{x.month}')
         res[f'{metric_type.upper()}_ANALYST_{t.upper()}'] = series
     return res
 
 
-def computing(url):
+@task
+def transform(soup):
+    """
+    This function transforms the dataframe and computes results
+
+    :param soup: soup
+    :return: dict with results
+    """
 
     # getting the table from web page
-    soup = get_soup(get_html(url))
     df = pd.read_html(
         str(soup.find('table', {'class': 'scroll-table sort-table'})))[0]
 
-    # table preprocessing: Date column to datetime format,
+    # table pre processing: Date column to datetime format,
     # empty fields in Price Target column to 00 string,
     # formatting of Price Target string
     df.Date = df['Date'].astype('datetime64')
@@ -83,7 +98,14 @@ def computing(url):
             'amt': get_metrics(df, 'amt')}
 
 
-def pretty_print(result_dict):
+@task
+def load(result_dict):
+    """
+    This function prints results. Two tables INS metrics ans AMT metrics.
+
+    :param result_dict: dict with results
+    :return: None
+    """
     print('INS METRICS:')
     with pd.option_context('display.max_rows', None):
         ins = pd.concat(result_dict['ins'], axis=1)
@@ -96,10 +118,11 @@ def pretty_print(result_dict):
 
 
 if __name__ == '__main__':
-    url = ('https://www.marketbeat.com/stocks/'
-           'NASDAQ/MSFT/price-target/?MostRecent=0')
-
-    res = computing(url)
-    pretty_print(res)
-
+    with Flow('ms-etl') as flow:
+        url = ('https://www.marketbeat.com/stocks/'
+               'NASDAQ/MSFT/price-target/?MostRecent=0')
+        soup = extract(url)
+        res = transform(soup)
+        load(res)
+    flow.run()
 

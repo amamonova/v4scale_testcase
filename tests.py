@@ -1,12 +1,13 @@
 import unittest
-from script import computing
+from script import extract, transform
 
 
 class TestScript(unittest.TestCase):
     def test_computing(self):
         url = ('https://www.marketbeat.com/stocks/'
                'NASDAQ/MSFT/price-target/?MostRecent=0')
-        result = computing(url)
+        soup = extract(url)
+        result = transform(soup)
 
         amt_buy_18_10_19 = 105
         self.assertEqual(result['amt']['AMT_ANALYST_BUY']['2019-10-18'],
