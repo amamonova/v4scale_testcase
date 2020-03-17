@@ -83,16 +83,23 @@ def computing(url):
             'amt': get_metrics(df, 'amt')}
 
 
+def pretty_print(result_dict):
+    print('INS METRICS:')
+    with pd.option_context('display.max_rows', None):
+        ins = pd.concat(result_dict['ins'], axis=1)
+        print(ins)
+
+    print('AMT METRICS:')
+    with pd.option_context('display.max_rows', None):
+        amt = pd.concat(result_dict['amt'], axis=1)
+        print(amt)
+
+
 if __name__ == '__main__':
     url = ('https://www.marketbeat.com/stocks/'
            'NASDAQ/MSFT/price-target/?MostRecent=0')
 
     res = computing(url)
+    pretty_print(res)
 
-    with pd.option_context('display.max_rows', None):
-        for metric_type in ['amt', 'ins']:
-            for key in res[metric_type]:
-                print('*' * 10)
-                print(f'***{key}***')
-                print(res[metric_type][key].dropna())
 
