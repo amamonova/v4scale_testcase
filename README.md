@@ -1,0 +1,30 @@
+# V4SCALE test case
+
+This repo contains script for parsing MICROSOFT (NASDAQ:MSFT) 
+CURRENT ANALYST COVERAGE SUMMARY from 
+[MarketBeat](https://www.marketbeat.com/stocks/NASDAQ/MSFT/price-target/?MostRecent=0).
+
+## Getting Started
+
+Clone this repo and start the `script.py` file.
+
+### Prerequisites
+
+Download all requirements:
+
+```shell script
+pip install -r requirements.txt 
+```  
+
+## Running the tests
+
+Start `tests.py` file for testing the script. If an output is 
+clear, the script works without assertion errors.
+
+```shell script
+python tests.py
+```
+
+### Tests
+
+Testing the INS and AMT metrics for different dates. 
