@@ -24,7 +24,7 @@ pip install -r requirements.txt
 
 Start `tests.py` file for testing the script. If an output is 
 clear, the script works without assertion errors. 
-Doesn't work with Prefect.
+Doesn't work with new version of script.
 
 ```shell script
 python tests.py
