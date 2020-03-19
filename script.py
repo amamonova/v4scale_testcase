@@ -39,7 +39,7 @@ def preprocess_rating_column(inp_str):
     :param inp_str: The string with/without '➝' symbol
     :return: clean string
     """
-    if type(inp_str) == str and '➝' in inp_str:
+    if isinstance(inp_str, str) == str and '➝' in inp_str:
         return inp_str.split('➝')[1].strip()
     return inp_str
 
@@ -61,10 +61,13 @@ def get_metrics(dataframe, metric_type, ratings='Sell Hold Buy', freq='D'):
 
         if metric_type == 'ins':
             series = dataframe[dataframe.Rating == t].set_index('Date') \
-                .groupby(pd.Grouper(freq=freq))['Price Target'].count()
+                .groupby(pd.Grouper(freq=freq))['Price Target']\
+                .count().replace(0, pd.NA)
+            series = series.astype('Int64')
         elif metric_type == 'amt':
             series = dataframe[dataframe.Rating == t].set_index('Date') \
-                .groupby(pd.Grouper(freq=freq))['Price Target'].mean()
+                .groupby(pd.Grouper(freq=freq))['Price Target']\
+                .mean().replace(0, pd.NA).fillna(pd.NA)
         else:
             print('Not implemented type of metric')
             return 0
@@ -94,8 +97,25 @@ def transform(soup):
     df['Price Target'].fillna('00', inplace=True)
     df['Price Target'] = df['Price Target'].apply(clean_price_target)
 
-    return {'ins': get_metrics(df, 'ins'),
-            'amt': get_metrics(df, 'amt')}
+    ins_metrics = get_metrics(df, 'ins')
+    amt_metrics = get_metrics(df, 'amt')
+
+    result = []
+    for date in df.Date.dt.strftime('%Y-%m-%d').unique():
+        result.append({'date': date,
+                       'AMT_ANALYST_SELL': amt_metrics['AMT_ANALYST_SELL']
+                      .get(date, pd.NA),
+                       'AMT_ANALYST_BUY': amt_metrics['AMT_ANALYST_BUY']
+                      .get(date, pd.NA),
+                       'AMT_ANALYST_HOLD': amt_metrics['AMT_ANALYST_HOLD']
+                      .get(date, pd.NA),
+                       'INS_ANALYST_SELL': ins_metrics['INS_ANALYST_SELL']
+                      .get(date, pd.NA),
+                       'INS_ANALYST_BUY': ins_metrics['INS_ANALYST_BUY']
+                      .get(date, pd.NA),
+                       'INS_ANALYST_HOLD': ins_metrics['INS_ANALYST_HOLD']
+                      .get(date, pd.NA)})
+    return result
 
 
 @task
@@ -106,15 +126,7 @@ def load(result_dict):
     :param result_dict: dict with results
     :return: None
     """
-    print('INS METRICS:')
-    with pd.option_context('display.max_rows', None):
-        ins = pd.concat(result_dict['ins'], axis=1)
-        print(ins)
-
-    print('AMT METRICS:')
-    with pd.option_context('display.max_rows', None):
-        amt = pd.concat(result_dict['amt'], axis=1)
-        print(amt)
+    print(result_dict)
 
 
 if __name__ == '__main__':
